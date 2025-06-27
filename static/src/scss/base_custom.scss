@@ -1,0 +1,12 @@
+html .o_web_client > .o_action_manager {
+    overflow-y:auto !important;
+    }
+.small-chart{
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    }
+ .small-chart canvas {
+        height: 250px !important;
+    }

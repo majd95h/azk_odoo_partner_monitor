@@ -20,7 +20,7 @@ class PartnerCountry(models.Model, PartnerMonitorMixin):
         compute='_compute_counts',
         store=True
     )
-    to_reprocess_partners = fields.Integer(string='To Reprocess', default=0)
+    to_reprocess_partners = fields.Boolean(string='To Reprocess', default=False)
     slug = fields.Char(string="Country Slug")
     odoo_country_id = fields.Char(string="Odoo Country ID")
 
@@ -31,10 +31,6 @@ class PartnerCountry(models.Model, PartnerMonitorMixin):
 
     @api.model
     def cron_validate_countries(self):
-        """
-        Compare the actual number of partners per country against the
-        stored total_partner_count. If different, flag to_reprocess_partners.
-        """
         try:
             Partner = self.env['azk.partner.partner']
             for country in self.search([]):
@@ -54,23 +50,28 @@ class PartnerCountry(models.Model, PartnerMonitorMixin):
                         country.to_reprocess_partners = False
         except Exception as e:
             self._post_cron_error('cron_validate_countries', str(e))
-            _logger.exception("خطأ في cron_validate_countries")
+            _logger.exception("Error in cron_validate_countries")
 
     @api.model
     def cron_reprocess_flagged_countries(self):
-        """
-        For each country flagged, set fetch mode to 'specific_c' and
-        re-run fetch_partner_data(), then clear the flag.
-        """
         params = self.env['ir.config_parameter'].sudo()
         partner = self.env['azk.partner.partner']
         flagged = self.search([('to_reprocess_partners', '=', True)])
+
         for country in flagged:
-            # set parameters
-            params.set_param('azk_odoo_partner_monitor.partner_fetch_mode', 'specific_c')
-            params.set_param('azk_odoo_partner_monitor.partner_country_id', str(country.id))
-            # call main scraper in country-specific mode
-            partner.fetch_partner_data()
-            # clear flag
-            country.to_reprocess_partners = False
-            _logger.info("Reprocessed country %s", country.name)
+            try:
+                # Set temporary parameters
+                params.set_param('azk_odoo_partner_monitor.partner_fetch_mode', 'specific_c')
+                params.set_param('azk_odoo_partner_monitor.partner_country_id', str(country.id))
+
+                # Fetch and update partner data for the country
+                partner.fetch_partner_data()
+
+                # Clear reprocess flag
+                country.to_reprocess_partners = False
+                _logger.info("Reprocessed country %s", country.name)
+
+            finally:
+                # Always clear parameters to avoid side effects
+                params.unlink_param('azk_odoo_partner_monitor.partner_fetch_mode')
+                params.unlink_param('azk_odoo_partner_monitor.partner_country_id')

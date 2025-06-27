@@ -28,7 +28,7 @@
               <td><span t-esc="partner.name"/></td>
               <td><span t-esc="partner.country_id.name"/></td>
               <td><span t-esc="partner.current_status"/></td>
-              <td><span t-esc="partner.first_seen"/></td>
+              <td><span t-esc="partner.first_seen_on"/></td>
             </tr>
           </tbody>
         </table>

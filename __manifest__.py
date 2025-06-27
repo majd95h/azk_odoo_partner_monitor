@@ -21,13 +21,14 @@
         'views/reference_views.xml',
         'report/partner_report_templates.xml',
         'views/dashboard_menu.xml',
-        # 'views/dashboard_search_views.xml',
         'views/menus.xml',
     ],
     "assets": {
         "web.assets_backend": [
+            "azk_odoo_partner_monitor/static/lib/chartJS/chart.umd.min.js",
             "azk_odoo_partner_monitor/static/src/js/dashboard.js",
             "azk_odoo_partner_monitor/static/src/xml/dashboard_templates.xml",
+            "azk_odoo_partner_monitor/static/src/scss/base_custom.scss",
         ],
     },
     'installable': True,

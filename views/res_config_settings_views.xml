@@ -17,6 +17,8 @@
                         <field string="Partner Data Fetching page" name="partner_fetch_page" invisible="partner_fetch_mode != 'specific'"/>
                         <span class="d-block w-75 py-2" invisible="partner_fetch_mode != 'specific_c'">Partner Data Fetching Country</span>
                         <field string="Partner Data Fetching Country" name="partner_country_id" invisible="partner_fetch_mode != 'specific_c'"/>
+                        <span class="d-block w-75 py-2">The Partner Monitor error reception user </span>
+                        <field string="The Partner Monitor error reception user " name="partner_monitor_error_user_id" />
                     </setting>
                 </block>
                 </app>

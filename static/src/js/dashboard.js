@@ -17,7 +17,7 @@ class PartnerDashboard extends Component {
 
         onWillStart(async () => {
             try {
-                await loadJS('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+                await loadJS('/azk_odoo_partner_monitor/static/lib/chartJS/chart.umd.min.js');
             } catch (error) {
                 if (!(error instanceof AssetsLoadingError)) {
                     throw error;
@@ -34,50 +34,35 @@ class PartnerDashboard extends Component {
 
     async fetchFilterOptions() {
         try {
-            console.log('Fetching countries...');
-
-            // Option 1: Get all countries from res.country
             this.state.availableCountries = await this.orm.searchRead(
                 'azk.partner.country',
                 [],
                 ['id', 'name'],
-                { order: 'name ASC', limit: 1000 } // Increase limit if needed
+                { order: 'name ASC', limit: 1000 }
             );
-
-            console.log('Countries fetched:', this.state.availableCountries);
         } catch (countryError) {
             console.error('Failed to fetch countries', countryError);
-
-            // Fallback: Manual country list
             this.state.availableCountries = [
                 {id: 1, name: 'United States'},
                 {id: 2, name: 'Canada'},
-                // Add other countries as needed
             ];
         }
 
         try {
-            console.log('Fetching years...');
-
-            // Get distinct years using readGroup
             const yearGroups = await this.orm.readGroup(
                 'azk.partner.partner',
                 [['first_seen_on', '!=', null]],
                 ['first_seen_on'],
                 ['first_seen_on'],
-                { orderBy: [{ name: 'first_seen_on', asc: false }] }
+                { groupby: 'first_seen_on desc' }
             );
 
             this.state.availableYears = yearGroups
                 .map(group => group.first_seen_on)
                 .filter(year => year !== null && year !== undefined)
-                .sort((a, b) => b - a); // Descending order
-
-            console.log('Years fetched:', this.state.availableYears);
+                .sort((a, b) => b - a);
         } catch (yearError) {
             console.error('Failed to fetch years', yearError);
-
-            // Fallback: Generate last 10 years
             const currentYear = new Date().getFullYear();
             this.state.availableYears = Array.from(
                 {length: 10},
@@ -89,17 +74,16 @@ class PartnerDashboard extends Component {
     get domain() {
         const domain = [];
         const { statusFilter, countryFilter, yearFilter } = this.state;
-        console.log('countryFilter',countryFilter)
         if (statusFilter) domain.push(['current_status', '=', statusFilter]);
         if (countryFilter) domain.push(['country_id', '=', parseInt(countryFilter)]);
         if (yearFilter) domain.push(['first_seen_on', '=', parseInt(yearFilter)]);
-        console.log('domain',domain)
         return domain;
     }
 
     async loadAndRender() {
-        const [partnersData, projectsData] = await Promise.all([
-            this.orm.call(
+        try {
+            // Fetch partner data with country information
+            const partnersData = await this.orm.call(
                 'azk.partner.partner',
                 'read_group',
                 [
@@ -108,71 +92,139 @@ class PartnerDashboard extends Component {
                     ['country_id', 'current_status']
                 ],
                 { lazy: false }
-            ),
-            this.orm.call(
+            );
+
+            // Fetch project data with country information
+            const projectsData = await this.orm.call(
                 'azk.partner.partner',
                 'search_read',
-                [this.domain, ['average_project_size', 'country_id']],
-            ),
-        ]);
+                [
+                    this.domain,
+                    ['average_project_size', 'country_id']
+                ],
+                { limit: 10000 }
+            );
 
-        const grouped = {};
-        partnersData.forEach(g => {
-            const country = g.country_id[1] || 'Unknown';
-            grouped[country] = grouped[country] || { gold: 0, silver: 0, ready: 0 };
-            grouped[country][g.current_status] = g['__count'];
-        });
+            // Get country names
+            const countryIds = [
+                ...new Set([
+                    ...partnersData.map(p => p.country_id ? p.country_id[0] : null),
+                    ...projectsData.map(p => p.country_id ? p.country_id[0] : null)
+                ].filter(id => id !== null))
+            ];
 
-        const sortedCountries = Object.entries(grouped).sort((a, b) => {
-            const sum = x => x.gold + x.silver + x.ready;
-            return sum(b[1]) - sum(a[1]);
-        });
+            const countriesInfo = await this.orm.searchRead(
+                'azk.partner.country',
+                [['id', 'in', countryIds]],
+                ['id', 'name']
+            );
 
-        const top5 = sortedCountries.slice(0, 5);
-        const bottom5 = sortedCountries.slice(-5);
+            const countryNames = {};
+            countriesInfo.forEach(country => {
+                countryNames[country.id] = country.name;
+            });
 
-        const buckets = {};
-        projectsData.forEach(p => {
-            const country = p.country_id[1] || 'Unknown';
-            const size = p.average_project_size || 0;
-            let bucket = '<5';
-            if (size > 25) bucket = '25+';
-            else if (size > 10) bucket = '11-25';
-            else if (size > 5) bucket = '5-10';
+            // Partner data processing
+            const groupedPartners = {};
+            partnersData.forEach(g => {
+                const countryId = g.country_id ? g.country_id[0] : null;
+                const countryName = countryId ? countryNames[countryId] || 'Unknown' : 'Unknown';
 
-            buckets[country] = buckets[country] || { '<5': 0, '5-10': 0, '11-25': 0, '25+': 0 };
-            buckets[country][bucket]++;
-        });
+                if (!groupedPartners[countryId]) {
+                    groupedPartners[countryId] = {
+                        id: countryId,
+                        name: countryName,
+                        gold: 0,
+                        silver: 0,
+                        ready: 0
+                    };
+                }
+                groupedPartners[countryId][g.current_status] = g['__count'];
+            });
 
-        // Aggregate project sizes for top/bottom countries
-        const top5Aggregated = this.aggregateProjectSizes(top5, buckets);
-        const bottom5Aggregated = this.aggregateProjectSizes(bottom5, buckets);
+            // Convert to matrix and sort by number of partners
+            const sortedCountries = Object.values(groupedPartners).sort((a, b) => {
+                const totalA = a.gold + a.silver + a.ready;
+                const totalB = b.gold + b.silver + b.ready;
+                return totalB - totalA;
+            });
 
-        this.renderPartnerCharts(top5, bottom5);
-        this.renderSizeCharts(top5Aggregated, bottom5Aggregated);
-    }
+            const top5 = sortedCountries.slice(0, 5);
+            const bottom5 = sortedCountries.slice(-5);
 
-    aggregateProjectSizes(countries, buckets) {
-        const aggregated = { '<5': 0, '5-10': 0, '11-25': 0, '25+': 0 };
-        countries.forEach(([country]) => {
-            if (buckets[country]) {
-                Object.keys(aggregated).forEach(bucket => {
-                    aggregated[bucket] += buckets[country][bucket] || 0;
-                });
+            // Project data processing
+            const projectBuckets = {};
+            projectsData.forEach(p => {
+                const countryId = p.country_id ? p.country_id[0] : null;
+                const countryName = countryId ? countryNames[countryId] || 'Unknown' : 'Unknown';
+                const size = p.average_project_size || 0;
+
+                let bucket = '<5';
+                if (size >= 25) bucket = '25+';
+                else if (size >= 11) bucket = '11-25';
+                else if (size >= 5) bucket = '5-10';
+
+                if (!projectBuckets[countryId]) {
+                    projectBuckets[countryId] = {
+                        name: countryName,
+                        '<5': 0,
+                        '5-10': 0,
+                        '11-25': 0,
+                        '25+': 0
+                    };
+                }
+                projectBuckets[countryId][bucket] += 1;
+            });
+
+            // Preparing data for graphs
+            const prepareChartData = (countries) => {
+                return countries.map(country => {
+                    const buckets = projectBuckets[country.id] || {
+                        name: country.name,
+                        '<5': 0,
+                        '5-10': 0,
+                        '11-25': 0,
+                        '25+': 0
+                    };
+
+                    return {
+                        countryName: buckets.name,
+                        '<5': buckets['<5'],
+                        '5-10': buckets['5-10'],
+                        '11-25': buckets['11-25'],
+                        '25+': buckets['25+'],
+                        total: buckets['<5'] + buckets['5-10'] + buckets['11-25'] + buckets['25+']
+                    };
+                }).filter(d => d.total > 0);
+            };
+
+            const top5Data = prepareChartData(top5);
+            const bottom5Data = prepareChartData(bottom5);
+
+            this.renderPartnerCharts(top5, bottom5);
+            this.renderSizeCharts(top5Data, bottom5Data);
+        } catch (error) {
+            console.error('Error in loadAndRender:', error);
+            const errorContainer = document.getElementById('dashboard-error');
+            if (errorContainer) {
+                errorContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        Failed to load data: ${error.message || 'Unknown error'}
+                    </div>
+                `;
             }
-        });
-        return aggregated;
+        }
     }
 
     renderPartnerCharts(top, bottom) {
         const buildConfig = (data, title) => ({
             type: 'bar',
             data: {
-                labels: data.map(d => d[0]),
+                labels: data.map(d => d.name),
                 datasets: [
-                    { label: 'Gold', data: data.map(d => d[1].gold), backgroundColor: '#FFD700' },
-                    { label: 'Silver', data: data.map(d => d[1].silver), backgroundColor: '#C0C0C0' },
-                    { label: 'Ready', data: data.map(d => d[1].ready), backgroundColor: '#32CD32' },
+                    { label: 'Gold', data: data.map(d => d.gold), backgroundColor: '#FFD700' },
+                    { label: 'Silver', data: data.map(d => d.silver), backgroundColor: '#C0C0C0' },
+                    { label: 'Ready', data: data.map(d => d.ready), backgroundColor: '#32CD32' },
                 ],
             },
             options: {
@@ -190,54 +242,87 @@ class PartnerDashboard extends Component {
             },
         });
 
-        const topEl = document.getElementById('top_countries_chart');
-        const bottomEl = document.getElementById('bottom_countries_chart');
+        const renderChart = (elementId, data, title) => {
+            const el = document.getElementById(elementId);
+            if (!el) return;
 
-        if (topEl) {
-            if (topEl.chart) topEl.chart.destroy();
-            topEl.chart = new Chart(topEl, buildConfig(top, 'Top 5 Countries by Partners'));
-        }
-        if (bottomEl) {
-            if (bottomEl.chart) bottomEl.chart.destroy();
-            bottomEl.chart = new Chart(bottomEl, buildConfig(bottom, 'Bottom 5 Countries by Partners'));
-        }
+            if (el.chart) el.chart.destroy();
+
+            if (data.length > 0) {
+                el.chart = new Chart(el, buildConfig(data, title));
+            } else {
+                el.innerHTML = `<div class="text-center p-3">No data available for ${title}</div>`;
+            }
+        };
+
+        renderChart('top_countries_chart', top, 'Top 5 Countries by Partners');
+        renderChart('bottom_countries_chart', bottom, 'Bottom 5 Countries by Partners');
     }
 
     renderSizeCharts(topData, bottomData) {
-        const buildConfig = (data, title) => ({
-            type: 'pie',
-            data: {
-                labels: Object.keys(data),
-                datasets: [{
-                    data: Object.values(data),
-                    backgroundColor: ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c'],
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: title
+        const buildConfig = (data, title) => {
+            // Data preparation for each country
+            const labels = data.map(d => d.countryName);
+            const datasets = [
+                {
+                    label: '<5',
+                    data: data.map(d => d['<5']),
+                    backgroundColor: '#a6cee3'
+                },
+                {
+                    label: '5-10',
+                    data: data.map(d => d['5-10']),
+                    backgroundColor: '#1f78b4'
+                },
+                {
+                    label: '11-25',
+                    data: data.map(d => d['11-25']),
+                    backgroundColor: '#b2df8a'
+                },
+                {
+                    label: '25+',
+                    data: data.map(d => d['25+']),
+                    backgroundColor: '#33a02c'
+                }
+            ];
+
+            return {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
                     },
-                    legend: {
-                        position: 'bottom'
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true }
                     }
                 }
+            };
+        };
+
+        const renderChart = (elementId, data, title) => {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            if (el.chart) el.chart.destroy();
+
+            if (data.length > 0) {
+                el.chart = new Chart(el, buildConfig(data, title));
+            } else {
+                el.innerHTML = `<div class="text-center p-3">No project data available for ${title}</div>`;
             }
-        });
+        };
 
-        const topEl = document.getElementById('top_project_distribution_chart');
-        const bottomEl = document.getElementById('bottom_project_distribution_chart');
-
-        if (topEl) {
-            if (topEl.chart) topEl.chart.destroy();
-            topEl.chart = new Chart(topEl, buildConfig(topData, 'Top 5 Countries Project Size Distribution'));
-        }
-        if (bottomEl) {
-            if (bottomEl.chart) bottomEl.chart.destroy();
-            bottomEl.chart = new Chart(bottomEl, buildConfig(bottomData, 'Bottom 5 Countries Project Size Distribution'));
-        }
+        renderChart('top_project_distribution_chart', topData, 'Top 5 Countries Project Size Distribution');
+        renderChart('bottom_project_distribution_chart', bottomData, 'Bottom 5 Countries Project Size Distribution');
     }
 
     applyFilters() {

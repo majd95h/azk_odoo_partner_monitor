@@ -1,95 +1,75 @@
 <templates xml:space="preserve">
     <t t-name="azk_dashboard.dashboard" owl="1">
         <div class="o_container">
-            <div class="bg-white p-4 shadow rounded mb-4">
-                <h2 class="text-xl font-bold mb-3">Filters</h2>
-                <div class="flex flex-wrap gap-4 items-end">
-                    <!-- Debug Info -->
-                    <div class="text-xs text-red-500">
-                        <t t-if="state.availableCountries.length === 0">
-                            No countries loaded
-                        </t>
-                        <t t-if="state.availableYears.length === 0">
-                            No years loaded
-                        </t>
-                    </div>
-
-                    <!-- Status Filter -->
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Status</label>
-                        <select name="statusFilter" t-model="state.statusFilter"
-                                class="border rounded px-3 py-2 w-48">
-                            <option value="">All Statuses</option>
-                            <option value="gold">Gold</option>
-                            <option value="silver">Silver</option>
-                            <option value="ready">Ready</option>
-                        </select>
-                    </div>
-
-                    <!-- Country Filter -->
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Country</label>
-                        <select name="countryFilter" t-model="state.countryFilter"
-                                class="border rounded px-3 py-2 w-48 max-h-60 overflow-y-auto">
-                            <option value="">All Countries</option>
-                            <t t-foreach="state.availableCountries" t-as="country" t-key="country">
-                                <option t-att-value="country.id">
-                                    <t t-esc="country.name"/>
-                                </option>
-                            </t>
-                        </select>
-                    </div>
-
-                    <!-- Year Filter -->
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Year First Seen</label>
-                        <select name="yearFilter" t-model="state.yearFilter"
-                                class="border rounded px-3 py-2 w-48 max-h-60 overflow-y-auto">
-                            <option value="">All Years</option>
-                            <t t-foreach="state.availableYears" t-as="year" t-key="year">
-                                <option t-att-value="year">
-                                    <t t-esc="year"/>
-                                </option>
-                            </t>
-                        </select>
-                    </div>
-
-                    <!-- Filter Buttons -->
-                    <div class="flex gap-2">
-                        <button t-on-click="applyFilters"
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Apply Filters
-                        </button>
-                        <button t-on-click="clearFilters"
-                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Clear Filters
-                        </button>
-                    </div>
-                </div>
+    <!-- Filters -->
+    <div class="bg-white p-2 shadow rounded mb-3">
+        <div class="d-flex flex-wrap align-items-end gap-2">
+            <!-- Status Filter -->
+            <div class="me-2">
+                <label class="form-label small">Status</label>
+                <select t-model="state.statusFilter" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    <option value="gold">Gold</option>
+                    <option value="silver">Silver</option>
+                    <option value="ready">Ready</option>
+                </select>
             </div>
-
-            <!-- Charts -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Partner Country Charts -->
-                <div class="bg-white p-4 shadow rounded">
-                    <h3 class="text-lg font-semibold mb-2">Top 5 Countries by Partners</h3>
-                    <canvas id="top_countries_chart" height="300"></canvas>
-                </div>
-                <div class="bg-white p-4 shadow rounded">
-                    <h3 class="text-lg font-semibold mb-2">Bottom 5 Countries by Partners</h3>
-                    <canvas id="bottom_countries_chart" height="300"></canvas>
-                </div>
-
-                <!-- Project Size Charts -->
-                <div class="bg-white p-4 shadow rounded">
-                    <h3 class="text-lg font-semibold mb-2">Top 5 Countries Project Size Distribution</h3>
-                    <canvas id="top_project_distribution_chart" height="300"></canvas>
-                </div>
-                <div class="bg-white p-4 shadow rounded">
-                    <h3 class="text-lg font-semibold mb-2">Bottom 5 Countries Project Size Distribution</h3>
-                    <canvas id="bottom_project_distribution_chart" height="300"></canvas>
-                </div>
+            <!-- Country Filter -->
+            <div class="me-2">
+                <label class="form-label small">Country</label>
+                <select t-model="state.countryFilter" class="form-select form-select-sm">
+                    <option value="">All Countries</option>
+                    <t t-foreach="state.availableCountries" t-as="country" t-key="country.id">
+                        <option t-att-value="country.id"><t t-esc="country.name" /></option>
+                    </t>
+                </select>
+            </div>
+            <!-- Year Filter -->
+            <div class="me-2">
+                <label class="form-label small">Year First Seen</label>
+                <select t-model="state.yearFilter" class="form-select form-select-sm">
+                    <option value="">All Years</option>
+                    <t t-foreach="state.availableYears" t-as="year" t-key="year">
+                        <option t-att-value="year"><t t-esc="year" /></option>
+                    </t>
+                </select>
+            </div>
+            <!-- Buttons -->
+            <div class="d-flex gap-1 mt-2">
+                <button t-on-click="applyFilters" class="btn btn-primary btn-sm">Apply</button>
+                <button t-on-click="clearFilters" class="btn btn-secondary btn-sm">Clear</button>
             </div>
         </div>
+    </div>
+
+    <!-- Charts in two rows -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="bg-white p-2 shadow rounded small-chart">
+                <h5 class="mb-1 small">Top 5 Countries by Partners</h5>
+                <canvas id="top_countries_chart"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="bg-white p-2 shadow rounded small-chart">
+                <h5 class="mb-1 small">Bottom 5 Countries by Partners</h5>
+                <canvas id="bottom_countries_chart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="bg-white p-2 shadow rounded small-chart">
+                <h5 class="mb-1 small">Top 5 Countries Project Size Distribution</h5>
+                <canvas id="top_project_distribution_chart"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="bg-white p-2 shadow rounded small-chart">
+                <h5 class="mb-1 small">Bottom 5 Countries Project Size Distribution</h5>
+                <canvas id="bottom_project_distribution_chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
     </t>
 </templates>

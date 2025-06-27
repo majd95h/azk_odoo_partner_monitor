@@ -31,6 +31,30 @@ class PartnerPartner(models.Model):
 
     status_history_ids = fields.One2many('azk.partner.status.history', 'partner_id', string='Status History')
     reference_ids = fields.One2many('azk.partner.reference', 'partner_id', string='Reference History')
+    project_size_bucket = fields.Selection(
+        selection=[
+            ('<5', '<5'),
+            ('5-10', '5-10'),
+            ('11-25', '11-25'),
+            ('25+', '25+')
+        ],
+        string='Project Size Bucket',
+        compute='_compute_project_size_bucket',
+        store=True
+    )
+
+    @api.depends('average_project_size')
+    def _compute_project_size_bucket(self):
+        for record in self:
+            size = record.average_project_size or 0
+            if size >= 25:
+                record.project_size_bucket = '25+'
+            elif size >= 11:
+                record.project_size_bucket = '11-25'
+            elif size >= 5:
+                record.project_size_bucket = '5-10'
+            else:
+                record.project_size_bucket = '<5'
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -150,7 +174,6 @@ class PartnerPartner(models.Model):
             return []
 
     def _determine_pages(self, mode, config):
-        """Determine URL and pages to fetch based on fetch mode setting."""
         base_url = 'https://www.odoo.com/partners?country_all=1'
         if mode == 'all':
             return base_url, list(range(1, self._get_max_pages(base_url) + 1))
@@ -175,7 +198,6 @@ class PartnerPartner(models.Model):
         return base_url, []
 
     def fetch_partner_data(self):
-        """Main cron to fetch all partners depending on configuration mode."""
         config = self.env['ir.config_parameter'].sudo()
         fetch_mode = config.get_param('azk_odoo_partner_monitor.partner_fetch_mode', 'all')
 
@@ -187,7 +209,7 @@ class PartnerPartner(models.Model):
         use_amp = '?' in base_url
         url_for = lambda p: f"{base_url}/page/{p}" if not use_amp else f"{base_url}&page={p}" if p > 1 else base_url
 
-        thread_count = 4 if fetch_mode == 'all' else min(len(pages), 8)
+        thread_count = 50 if fetch_mode == 'all' else min(len(pages), 8)
         _logger.info("Fetching %d pages using %d threads...", len(pages), thread_count)
 
         scraped = []
@@ -216,7 +238,6 @@ class PartnerPartner(models.Model):
 
     @api.model
     def cron_validate_partners(self):
-        """Cron to check if any partner's reference count has changed."""
         for partner in self.search([]):
             active_count = self.env['azk.partner.reference'].search_count([
                 ('partner_id', '=', partner.id),
@@ -226,96 +247,81 @@ class PartnerPartner(models.Model):
                 partner.write({'to_reprocess_references': True})
                 _logger.info("Partner %s marked for reprocess due to mismatch.", partner.name)
 
-    def _parse_single_partner_page(self, partner_url):
-        """
-        Parse a single partner profile page to extract detailed partner data.
-        Returns a tuple (partner_name, data_dict).
-        """
+    def _parse_single_partner_page(self, soup):
         try:
-            response = requests.get(partner_url, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+            # -----------------------------
+            # 1. Country from last <br> in address
+            # -----------------------------
+            country_name = "Unknown"
+            address_span = soup.select_one('span[itemprop="streetAddress"]')
+            if address_span:
+                parts = re.split(r'<br\s*/?>', str(address_span), flags=re.IGNORECASE)
+                if parts:
+                    last_part = BeautifulSoup(parts[-1], 'html.parser').get_text(strip=True)
+                    if last_part:
+                        country_name = last_part
 
-            # Partner name
-            name_tag = soup.select_one('h1')
-            partner_name = name_tag.text.strip() if name_tag else None
-            if not partner_name:
-                _logger.warning("No name found in %s", partner_url)
-                return None, {}
-
-            # Country: extract from last <br> inside address block
-            country = 'Unknown'
-            address_block = soup.select_one('span[itemprop="streetAddress"]')
-            if address_block and '<br>' in str(address_block):
-                parts = str(address_block).split('<br>')
-                country = BeautifulSoup(parts[-1], 'html.parser').text.strip()
-
-            # Total References
-            total_refs = 0
-            ref_div = soup.select_one('div.stat_ref')
-            if ref_div:
-                header = ref_div.select_one('div.mt-3')
-                if header and 'References' in header.text:
-                    match = re.search(r'(\d+)', header.text)
+            # -----------------------------
+            # 2. Retention Rate from stat_size section (e.g., "88 %")
+            # -----------------------------
+            retention_rate = 0.0
+            stat_size_div = soup.select_one('div.stat_size')
+            if stat_size_div:
+                retention_span = stat_size_div.find(string=re.compile(r'\d+\s*%'))
+                if retention_span:
+                    match = re.search(r'(\d+)', retention_span)
                     if match:
-                        total_refs = int(match.group(1))
+                        retention_rate = float(match.group(1))
 
-            # Largest & Average Project Size
-            largest = 0
-            average = 0.0
-            size_div = soup.select_one('div.stat_size')
-            if size_div:
-                largest_tag = size_div.find(string=re.compile('Largest:'))
-                if largest_tag:
-                    match = re.search(r'(\d+)', largest_tag)
+            # -----------------------------
+            # 3. Largest and Average Project Sizes
+            # -----------------------------
+            largest_project_size = 0
+            average_project_size = 0.0
+            if stat_size_div:
+                # Largest
+                largest_tag = stat_size_div.find('span', string=re.compile('Largest', re.IGNORECASE))
+                if largest_tag and largest_tag.next_sibling:
+                    largest_text = largest_tag.next_sibling.strip()
+                    match = re.search(r'(\d+)', largest_text)
                     if match:
-                        largest = int(match.group(1))
+                        largest_project_size = int(match.group(1))
 
-                average_tag = size_div.find(string=re.compile('Average:'))
-                if average_tag:
-                    match = re.search(r'(\d+(?:\.\d+)?)', average_tag)
+                # Average
+                average_tag = stat_size_div.find('span', string=re.compile('Average', re.IGNORECASE))
+                if average_tag and average_tag.next_sibling:
+                    average_text = average_tag.next_sibling.strip()
+                    match = re.search(r'(\d+(?:\.\d+)?)', average_text)
                     if match:
-                        average = float(match.group(1))
+                        average_project_size = float(match.group(1))
 
-            # Retention Rate
-            retention_value = 0.0
-            if size_div:
-                retention_text = size_div.find(string=re.compile(r'\d+\s*%'))
-                if retention_text:
-                    match = re.search(r'(\d+)', retention_text)
+            # -----------------------------
+            # 4. Total References
+            # -----------------------------
+            total_references_count = 0
+            stat_ref_div = soup.select_one('div.stat_ref')
+            if stat_ref_div:
+                heading = stat_ref_div.find(string=re.compile(r'References\s*-\s*\d+', re.IGNORECASE))
+                if heading:
+                    match = re.search(r'(\d+)', heading)
                     if match:
-                        retention_value = float(match.group(1))
+                        total_references_count = int(match.group(1))
 
-            # Status (from badge)
-            badge = soup.select_one('span.badge')
-            badge_text = badge.text.lower().strip() if badge else ''
-            if 'gold' in badge_text:
-                status = 'gold'
-            elif 'silver' in badge_text:
-                status = 'silver'
-            else:
-                status = 'ready'
-
-            return partner_name, {
-                'partner_url': partner_url,
-                'current_status': status,
-                'country_name': country,
-                'retention_rate': retention_value,
-                'total_references_count': total_refs,
-                'largest_project_size': largest,
-                'average_project_size': average,
+            # Return all values as a dict
+            return {
+                'country_name': country_name,
+                'retention_rate': retention_rate,
+                'largest_project_size': largest_project_size,
+                'average_project_size': average_project_size,
+                'total_references_count': total_references_count,
             }
 
         except Exception as e:
-            _logger.error("Failed to parse %s: %s", partner_url, e)
-            return None, {}
+            _logger.exception("Failed to parse single partner page: %s", e)
+            return {}
 
     @api.model
     def cron_reprocess_flagged_partners(self):
-        """
-        Re-scrape only the partners flagged for reprocessing
-        and update their information.
-        """
         flagged = self.search([('to_reprocess_references', '=', True)])
         if not flagged:
             _logger.info("No partners flagged for reprocessing.")

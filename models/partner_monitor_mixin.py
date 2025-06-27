@@ -12,37 +12,36 @@ class PartnerMonitorMixin(models.AbstractModel):
         params = self.env['ir.config_parameter'].sudo()
         user_id = params.get_param('azk_odoo_partner_monitor.error_recipient_user_id')
         if not user_id:
-            _logger.error("لم يتم تكوين مستخدم استقبال أخطاء Partner Monitor")
+            _logger.error("The Partner Monitor error reception user is not configured.")
             return
 
         user = self.env['res.users'].browse(int(user_id))
         if not user.exists():
-            _logger.error("المستخدم %s غير موجود", user_id)
+            _logger.error("User %s does not exist", user_id)
             return
 
-        subject = _("خطأ في %s") % cron_name
-        body = _("<b>فشِل تشغيل %s</b><br/><pre>%s</pre>") % (
+        subject = _("Error in %s") % cron_name
+        body = _("<b>Failed to start %s</b><br/><pre>%s</pre>") % (
             cron_name, error_message.replace("\n", "<br/>")
         )
 
-        # نحاول مرتين على الأكثر في حال خطأ SERIALIZATION
+        # We try twice at most in case of a serialization error.
         for attempt in range(2):
             try:
                 user.message_post(body=body, subject=subject, subtype='mail.mt_note')
                 return
             except DatabaseError as db_err:
-                # كود الخطأ 40001 في PostgreSQL يعني Serialization Failure
+                # Error code 40001 in PostgreSQL means Serialization Failure
                 if 'could not serialize access' in str(db_err):
                     _logger.warning(
-                        "محاولة %s/%s لإرسال رسالة الدردشة فشلت بسبب تداخل: %s",
+                        "%s/%s attempt to send chat message failed due to interference: %s",
                         attempt+1, 2, db_err
                     )
-                    time.sleep(0.5)  # انتظر نصف ثانية ثم أعد المحاولة
+                    time.sleep(0.5)
                     continue
-                # خطأ آخر: أُعيد طرحه
-                _logger.error("خطأ غير متوقع في نشر رسالة الدردشة: %s", db_err)
+                _logger.error("Unexpected error posting chat message: %s", db_err)
                 break
             except Exception as e:
-                _logger.error("فشل غير متوقع في message_post: %s", e)
+                _logger.error("Unexpected failure in message_post: %s", e)
                 break
-        _logger.error("لم ينجح إرسال إشعار الخطأ بعد محاولتين.")
+        _logger.error("Sending error notification was unsuccessful after two attempts.")

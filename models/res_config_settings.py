@@ -22,9 +22,9 @@ class ResConfigSettings(models.TransientModel):
 
     partner_monitor_error_user_id = fields.Many2one(
         'res.users',
-        string="مستخدم استقبال أخطاء Partner Monitor",
+        string="Partner Monitor Error Receiver User",
         config_parameter='azk_odoo_partner_monitor.error_recipient_user_id',
-        help="المستخدم الذي سيُرسَل إليه إشعار في الدردشة عند فشل أي كرون."
+        help="The user who will be notified in chat when a cron fails."
     )
 
     @api.onchange('partner_fetch_mode')

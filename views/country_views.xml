@@ -21,6 +21,7 @@
           <group>
             <field name="name"/>
             <field name="active"/>
+            <field name="to_reprocess_partners"/>
           </group>
           <notebook>
             <page string="Partners">
