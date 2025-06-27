@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="view_country_tree" model="ir.ui.view">
+    <field name="name">azk.partner.country.tree</field>
+    <field name="model">azk.partner.country</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="name"/>
+        <field name="total_partner_count"/>
+        <field name="to_reprocess_partners"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_country_form" model="ir.ui.view">
+    <field name="name">azk.partner.country.form</field>
+    <field name="model">azk.partner.country</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="active"/>
+          </group>
+          <notebook>
+            <page string="Partners">
+              <field name="partner_ids">
+                <list>
+                  <field name="name"/>
+                  <field name="current_status"/>
+                </list>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

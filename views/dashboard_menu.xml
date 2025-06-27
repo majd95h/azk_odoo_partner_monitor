@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="action_partner_dashboard" model="ir.actions.client">
+        <field name="name">Partner Dashboard</field>
+        <field name="tag">azk_dashboard.dashboard</field>
+        <field name="target">main</field>
+    </record>
+
+    <menuitem id="menu_partner_monitor_root"
+              name="Partner Monitor"
+              sequence="10"/>
+
+    <menuitem id="menu_partner_dashboard"
+              name="Dashboard"
+              parent="menu_partner_monitor_root"
+              action="action_partner_dashboard"
+              sequence="50"/>
+</odoo>

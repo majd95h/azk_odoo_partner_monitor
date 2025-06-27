@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_country_user,access_country_user,model_azk_partner_country,group_partner_monitor_user,1,1,1,1
+access_partner_user,access_partner_user,model_azk_partner_partner,group_partner_monitor_user,1,1,1,1
+access_history_user,access_history_user,model_azk_partner_status_history,group_partner_monitor_user,1,1,1,1
+access_reference_user,access_reference_user,model_azk_partner_reference,group_partner_monitor_user,1,1,1,1

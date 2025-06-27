@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_history_tree" model="ir.ui.view">
+    <field name="model">azk.partner.status.history</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="partner_id"/>
+        <field name="old_status"/>
+        <field name="new_status"/>
+        <field name="change_date"/>
+      </list>
+    </field>
+  </record>
+</odoo>

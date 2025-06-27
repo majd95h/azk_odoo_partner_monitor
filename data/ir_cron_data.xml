@@ -1,0 +1,51 @@
+<odoo>
+  <data noupdate="1">
+    <record id="ir_cron_fetch_partners" model="ir.cron">
+      <field name="name">Fetch Odoo Partners</field>
+      <field name="model_id" ref="model_azk_partner_partner"/>
+      <field name="state">code</field>
+      <field name="code">model.fetch_partner_data()</field>
+      <field name="interval_type">days</field>
+      <field name="interval_number">1</field>
+    </record>
+    <!-- 1. Daily: validate country‐level partner counts -->
+  <record id="ir_cron_validate_countries" model="ir.cron">
+    <field name="name">Validate Partner Countries</field>
+    <field name="model_id" ref="model_azk_partner_country"/>
+    <field name="state">code</field>
+    <field name="code">model.cron_validate_countries()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+  </record>
+
+  <!-- 2. Daily: re‐scrape any flagged countries -->
+  <record id="ir_cron_reprocess_countries" model="ir.cron">
+    <field name="name">Reprocess Flagged Countries</field>
+    <field name="model_id" ref="model_azk_partner_country"/>
+    <field name="state">code</field>
+    <field name="code">model.cron_reprocess_flagged_countries()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+  </record>
+
+  <!-- 3. Daily: validate partner‐level references -->
+  <record id="ir_cron_validate_partners" model="ir.cron">
+    <field name="name">Validate Partner References</field>
+    <field name="model_id" ref="model_azk_partner_partner"/>
+    <field name="state">code</field>
+    <field name="code">model.cron_validate_partners()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+  </record>
+
+  <!-- 4. Daily: re‐scrape any flagged partners -->
+  <record id="ir_cron_reprocess_partners" model="ir.cron">
+    <field name="name">Reprocess Flagged Partners</field>
+    <field name="model_id" ref="model_azk_partner_partner"/>
+    <field name="state">code</field>
+    <field name="code">model.cron_reprocess_flagged_partners()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+  </record>
+  </data>
+</odoo>

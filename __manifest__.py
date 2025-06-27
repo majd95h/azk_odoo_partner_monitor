@@ -1,0 +1,36 @@
+{
+    'name': 'Odoo Partner Monitor',
+    'version': '18.0.1.0.0',
+    'summary': 'Monitor and track Odoo official partners daily',
+    'category': 'Tools',
+    'author': 'Majdhsien1@gmail.com',
+    # 'website': 'https://github.com/yourrepo/azk_odoo_partner_monitor',
+    'license': 'AGPL-3',
+    'depends': [
+        'base',
+        'mail',
+    ],
+    'data': [
+        'security/partner_security.xml',
+        'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
+        'views/res_config_settings_views.xml',
+        'views/country_views.xml',
+        'views/partner_views.xml',
+        'views/history_views.xml',
+        'views/reference_views.xml',
+        'report/partner_report_templates.xml',
+        'views/dashboard_menu.xml',
+        # 'views/dashboard_search_views.xml',
+        'views/menus.xml',
+    ],
+    "assets": {
+        "web.assets_backend": [
+            "azk_odoo_partner_monitor/static/src/js/dashboard.js",
+            "azk_odoo_partner_monitor/static/src/xml/dashboard_templates.xml",
+        ],
+    },
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+}

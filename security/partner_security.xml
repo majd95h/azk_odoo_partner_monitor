@@ -1,0 +1,6 @@
+<odoo>
+  <record id="group_partner_monitor_user" model="res.groups">
+    <field name="name">Partner Monitor User</field>
+    <field name="category_id" ref="base.module_category_tools"/>
+  </record>
+</odoo>

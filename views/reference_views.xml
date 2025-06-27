@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_reference_tree" model="ir.ui.view">
+    <field name="model">azk.partner.reference</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="partner_id"/>
+        <field name="reference_count"/>
+        <field name="active"/>
+      </list>
+    </field>
+  </record>
+</odoo>

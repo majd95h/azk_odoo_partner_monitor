@@ -1,0 +1,38 @@
+<odoo>
+  <record id="action_report_partners" model="ir.actions.report">
+    <field name="name">Partner Report</field>
+    <field name="model">azk.partner.partner</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">azk_odoo_partner_monitor.partner_report_document</field>
+    <field name="report_file">azk_odoo_partner_monitor.partner_report_document</field>
+    <field name="print_report_name">'Partner Report - %s' % (object.name or 'Partner').replace('/','')</field>
+    <field name="binding_model_id" ref="model_azk_partner_partner"/>
+    <field name="binding_type">report</field>
+  </record>
+
+  <template id="partner_report_document">
+    <t t-call="web.basic_layout">
+      <div class="page">
+        <h2>Partner Report</h2>
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Country</th>
+              <th>Status</th>
+              <th>First Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr t-foreach="docs" t-as="partner">
+              <td><span t-esc="partner.name"/></td>
+              <td><span t-esc="partner.country_id.name"/></td>
+              <td><span t-esc="partner.current_status"/></td>
+              <td><span t-esc="partner.first_seen"/></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </t>
+  </template>
+</odoo>

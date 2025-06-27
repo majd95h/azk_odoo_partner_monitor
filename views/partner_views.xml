@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Tree View -->
+  <record id="view_partner_tree" model="ir.ui.view">
+    <field name="name">azk.partner.partner.tree</field>
+    <field name="model">azk.partner.partner</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="name"/>
+        <field name="country_id"/>
+        <field name="current_status"/>
+        <field name="retention_rate"/>
+        <field name="total_references_count"/>
+        <field name="largest_project_size"/>
+        <field name="average_project_size"/>
+        <field name="to_reprocess_references"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Form View -->
+  <record id="view_partner_form" model="ir.ui.view">
+    <field name="name">azk.partner.partner.form</field>
+    <field name="model">azk.partner.partner</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="partner_url"/>
+            <field name="country_id"/>
+            <field name="current_status"/>
+            <field name="first_seen_on" readonly="1"/>
+            <field name="retention_rate"/>
+            <field name="total_references_count"/>
+            <field name="largest_project_size"/>
+            <field name="average_project_size"/>
+            <field name="to_reprocess_references"/>
+          </group>
+
+          <notebook>
+            <page string="Status History">
+              <field name="status_history_ids">
+                <list>
+                  <field name="old_status"/>
+                  <field name="new_status"/>
+                  <field name="change_date"/>
+                </list>
+              </field>
+            </page>
+            <page string="References">
+              <field name="reference_ids">
+                <list>
+                  <field name="reference_count"/>
+                  <field name="active"/>
+                  <field name="change_date"/>
+                </list>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>
