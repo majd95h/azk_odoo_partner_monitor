@@ -102,7 +102,7 @@ The design ensures reliability and future-proofing:
 
 ---
 
-## 📸 Screenshots (Add your own)
+## 📸 Screenshots
 
 > Place your screenshots in `/screenshots` and embed them like:
 
@@ -161,4 +161,4 @@ This module is licensed under the LGPL-3.0 License.
 ## 👥 Author
 
 Developed by [Majd] at [Azkatech](https://www.azkatech.com)  
-Email: [E-mail](majdhsien1@gmail.com)
+Email: [majdhsien1@gmail.com]
