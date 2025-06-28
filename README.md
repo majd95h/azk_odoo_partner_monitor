@@ -15,7 +15,7 @@ An advanced Odoo 18.0 Community module that scrapes official Odoo partners from 
   - Automatic reprocessing of flagged partners and countries.
 
 - **Advanced Cron Jobs**:
-  - `fetch_partner_data`: main scraper (multi-threaded, resilient to layout changes).
+  - `fetch_partner_data`: main scraper (multi-threaded, resilient to layout changes,retry when fail).
   - `cron_validate_partners`: flags partners for reprocessing when reference count mismatches.
   - `cron_reprocess_flagged_partners`: re-scrapes flagged partners from profile pages.
   - `cron_validate_countries`: detects country count mismatch.
@@ -47,7 +47,7 @@ git clone https://github.com/majd95h/azk_odoo_partner_monitor.git
 1. Activate developer mode in Odoo.
 2. Update apps list.
 3. Install the **Odoo Partner Monitor** module.
-4. After installing the module, it will take 3 to 4 minutes to complete the cron.
+4. After installing the module, it will take 1 to 3 minutes to complete the cron.
 
 ---
 ## 🔐 User Access Rights
