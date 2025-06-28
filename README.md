@@ -1,49 +1,66 @@
+# AZK Odoo Partner Monitor
 
-# 🧩 Odoo Partner Monitor – Developer Exercise 1
+An advanced Odoo 18.0 Community module that scrapes official Odoo partners from [odoo.com](https://www.odoo.com/partners), stores their data, tracks status and reference history, and visualizes trends in a modern OWL-based dashboard.
+![Azkatech Logo](static/img/Azkatech-Logo-with-Transparent-Background-Wide-1024x211.webp)
 
-This module is part of the **Odoo Developer Technical Assessment – Exercise 1**, developed to demonstrate data scraping, dashboarding, and cron automation in the Odoo 18 Community environment.
+## 🚀 Module Features
+
+- **Partner Scraping Engine**:
+  - Collects partner data from Odoo.com (supports all/specific countries and pages).
+  - Extracts: name, profile URL, status (gold/silver/ready), country, reference count, retention rate, largest & average project sizes.
+
+- **Resilient Data Design**:
+  - Partners are tracked with reference and status history.
+  - Automatic detection of reference count changes.
+  - Automatic reprocessing of flagged partners and countries.
+
+- **Advanced Cron Jobs**:
+  - `fetch_partner_data`: main scraper (multi-threaded, resilient to layout changes).
+  - `cron_validate_partners`: flags partners for reprocessing when reference count mismatches.
+  - `cron_reprocess_flagged_partners`: re-scrapes flagged partners from profile pages.
+  - `cron_validate_countries`: detects country count mismatch.
+  - `cron_reprocess_flagged_countries`: re-scrapes a specific country if flagged.
+
+- **Interactive OWL Dashboard**:
+  - 4 charts: top/bottom 5 countries by partners & project size distribution.
+  - Filters: by status, country, and year first seen.
+  - Charts built using Chart.js.
 
 ---
 
-## 📚 Overview
+## 🧩 Installation
 
-The `azk_odoo_partner_monitor` module fetches and monitors official Odoo partners from [odoo.com/partners](https://www.odoo.com/partners), keeps track of changes in status and references, and provides a real-time dashboard to display partner statistics, project sizes, and geographical distribution.
+### Prerequisites
+
+- Odoo 18.0 Community
+- Python 3.10+
+- Internet access (for scraping)
+
+### Steps
+
+1. Clone the repo inside your custom addons path:
+
+```bash
+git clone https://github.com/majd95h/azk_odoo_partner_monitor.git
+```
+
+2. Activate developer mode in Odoo.
+3. Update apps list.
+4. Install the **Odoo Partner Monitor** module.
 
 ---
 
-## ✅ Features
+## ⚙️ Configuration
 
-### 🕸️ Web Scraping
-- Scrapes official Odoo partners with details:
-  - Partner name
-  - Status (Gold, Silver, Ready)
-  - Country
-  - Retention rate (%)
-  - Total references
-  - Largest and average project size
-- Supports **pagination** and **country-specific pages**
-- Configurable scraping modes:
-  - `all`: all partners from all countries
-  - `first`: only the first page
-  - `specific`: one specific page
-  - `specific_c`: one specific country
+In **Settings > Odoo Partner Monitor > Partner Data Fetching**:
 
-### 📈 Dashboards
-- OWL-based visual dashboard with:
-  - Top 5 countries by number of partners
-  - Bottom 5 countries by number of partners
-  - Project size distribution for top and bottom countries
-- Filters for:
-  - Partner Status
-  - Country
-  - First Seen Year
+| Key | Value |
+|-----|-------|
+| `azk_odoo_partner_monitor.partner_fetch_mode` | `all`, `first`, `specific`, or `specific_c` |
+| `azk_odoo_partner_monitor.partner_fetch_page` | Page number (used if `specific`) |
+| `azk_odoo_partner_monitor.partner_country_id` | ID of `res.country` (used if `specific_c`) |
 
-### 🔁 Crons
-- `fetch_partner_data`: Main scraper based on fetch mode
-- `cron_validate_partners`: Detects discrepancies in reference count
-- `cron_reprocess_flagged_partners`: Re-scrapes only flagged partners
-- `cron_validate_countries`: Verifies per-country partner count
-- `cron_reprocess_flagged_countries`: Re-scrapes data for flagged countries only
+![ResConfig](static/img/res_config_settings.png)
 
 ### 🧠 Smart Tracking
 - Tracks partner status change history (`promoted`, `demoted`, `initial`)
@@ -52,103 +69,96 @@ The `azk_odoo_partner_monitor` module fetches and monitors official Odoo partner
 
 ---
 
-## 🛠️ Technical Stack
+## ✅ Testing Strategy
 
-- **Odoo 18.0 Community**
-- **Python 3.12**
-- **BeautifulSoup 4** – for HTML scraping
-- **Concurrent Futures** – for threaded requests
-- **Chart.js v4** – for dashboard charts
-- **OWL (Odoo Web Library)** – for frontend components
+- Manual and cron-based testing.
+- Scraper validated against multiple countries and partner pages.
+- Edge case handling:
+  - Missing data (e.g., no project size).
+  - Country slug parsing.
+  - Layout shifts on Odoo.com.
 
----
+### Test Scenarios
 
-## 🔧 Configuration
-
-Access system parameters under *Settings → Technical → Parameters → System Parameters*:
-
-| Parameter Key                                      | Description                          | Example Value  |
-|----------------------------------------------------|--------------------------------------|----------------|
-| `azk_odoo_partner_monitor.partner_fetch_mode`      | Fetch mode (`all`, `first`, `specific`, `specific_c`) | `all`          |
-| `azk_odoo_partner_monitor.partner_fetch_page`      | Page number to fetch (if mode = `specific`) | `2`         |
-| `azk_odoo_partner_monitor.partner_country_id`      | `res.country` ID (if mode = `specific_c`) | `144`         |
+| Scenario | Result |
+|----------|--------|
+| Fetch all partners (country_all=1) | ✅ 100% fetched |
+| Reprocess flagged partner | ✅ Rescraped correctly |
+| Resilience to broken HTML or timeout | ✅ Logs error, continues |
+| Dashboard filters | ✅ Dynamic chart update |
+| Country page scraping | ✅ Matches partner count |
 
 ---
 
-## 🖥️ Screenshots
+## 🧱 Architecture & Resilience
 
-### 🔳 Filters and Charts
+The design ensures reliability and future-proofing:
 
-| Filter Bar + Top 5 Countries Chart | Project Size Distribution |
-|------------------------------------|----------------------------|
-| ![Dashboard Filters](screenshots/filters.png) | ![Project Size Chart](screenshots/size_chart.png) |
-
-> 📁 *Put images in a `/screenshots/` directory inside your module and use relative paths.*
-
----
-
-## 📅 Sample Cron Setup
-
-Activate the following automated actions under *Settings → Technical → Scheduled Actions*:
-
-| Name                        | Model                 | Method                            | Interval     |
-|-----------------------------|------------------------|-----------------------------------|--------------|
-| Fetch All Partners          | azk.partner.partner    | `fetch_partner_data`              | e.g. Daily   |
-| Validate Partner References | azk.partner.partner    | `cron_validate_partners`          | e.g. Weekly  |
-| Reprocess Flagged Partners  | azk.partner.partner    | `cron_reprocess_flagged_partners` | e.g. Hourly  |
-| Validate Country Counts     | azk.partner.country    | `cron_validate_countries`         | e.g. Weekly  |
-| Reprocess Flagged Countries | azk.partner.country    | `cron_reprocess_flagged_countries`| e.g. Weekly  |
+- **Scraper abstraction**: `_scrape_page`, `_parse_partner_card`, `_get_max_pages` encapsulate all scraping logic.
+- **Layout-independent**: Uses BeautifulSoup to extract stable identifiers (e.g. class names, `span` values).
+- **Threaded fetching**: Parallel requests speed up `fetch_partner_data()` without overloading.
+- **Error logging**: All critical errors are logged with traceback for debugging.
+- **Reprocessing flags**: Separate Boolean flags allow safe retrying.
 
 ---
 
-## 🧪 Testing
+## 📸 Screenshots (Add your own)
 
-You can manually test each cron from the Developer Mode via:
+> Place your screenshots in `/screenshots` and embed them like:
 
-**Settings → Technical → Scheduled Actions**
+### Dashboard Overview
 
-To test the dashboard:
-1. Go to `/web#action=azk_dashboard.dashboard`
-2. Apply different filters
-3. Confirm charts update dynamically
+![Dashboard](static/img/dashboard.png)
+
+### Filtered Charts
+
+![Filters](static/img/filtered_dashboard.png)
+
+### Partner Model
+
+![Partner Form](static/img/partner_form.png)
+
+### Status Model
+
+![Partner Form](static/img/status_history_form.png)
+---
+
+## 🤖 GenAI Usage (Optional)
+
+This project used ChatGPT for:
+
+- Designing cron architecture
+- Writing the BeautifulSoup selectors
+- Markdown formatting for README
+
 
 ---
 
-## 🚧 Known Limitations
+## 📦 Packaging & Maintainability
 
-- Charts currently support up to top/bottom 5 countries.
-- Country name resolution depends on exact match with website text.
-- Partner detail scraping is dependent on structure of Odoo.com, which may change.
-
----
-
-## 📂 Directory Structure
-
-```
-azk_odoo_partner_monitor/
-├── models/
-│   ├── partner_partner.py
-│   ├── partner_country.py
-│   └── partner_monitor_mixin.py
-├── static/
-│   └── src/js/partner_dashboard.js
-├── views/
-│   ├── menus.xml
-│   ├── dashboard_templates.xml
-│   └── dashboard_search_views.xml
-├── data/
-│   └── ir_cron.xml
-├── screenshots/
-│   └── filters.png
-│   └── size_chart.png
-├── __manifest__.py
-└── README.md
-```
+- Single module: `azk_odoo_partner_monitor`
+- Organized into models, views, static, and dashboard structure.
+- Fully uninstallable and reinstallable.
+- No external dependencies beyond `requests` and `bs4` (built-in for Odoo setups).
 
 ---
 
-## 🧠 Author
+## 🕒 Time Estimate
 
-Developed by **Majd Hsien**  
-As part of Odoo Developer Technical Exercise 1  
-© Azkatech 2025
+| Task | Time    |
+|------|---------|
+| Scraper & models | ~10 hrs |
+| Dashboard + OWL/Chart.js | ~4 hrs  |
+| Testing & cron jobs | ~10 hrs  |
+| Documentation | ~30 min |
+
+---
+
+## 📄 License
+
+This module is licensed under the LGPL-3.0 License.
+
+## 👥 Author
+
+Developed by [Majd] at [Azkatech](https://www.azkatech.com)  
+Email: [E-mail](majdhsien1@gmail.com)
