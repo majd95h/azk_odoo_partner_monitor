@@ -49,7 +49,17 @@ git clone https://github.com/majd95h/azk_odoo_partner_monitor.git
 4. Install the **Odoo Partner Monitor** module.
 
 ---
+## 🔐 User Access Rights
 
+To access the **Odoo Partner Monitor**, a user must have the appropriate security rights.
+
+### How to Grant Access:
+
+1. Go to **Settings > Users & Companies > Users**
+2. Open the user you want to grant access to.
+![Security](static/img/security.PNG)
+
+Without this access, the user will not be able to view or interact with the dashboard or related models.
 ## ⚙️ Configuration
 
 In **Settings > Odoo Partner Monitor > Partner Data Fetching**:

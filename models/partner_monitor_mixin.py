@@ -6,6 +6,7 @@ _logger = logging.getLogger(__name__)
 
 class PartnerMonitorMixin(models.AbstractModel):
     _name = 'azk.partner.monitor.mixin'
+    _description = 'Azk Partner Monitor Mixin'
 
     @api.model
     def _post_cron_error(self, cron_name, error_message):

@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyCharm project settings
+.idea/
+
+# VSCode settings
+.vscode/
+
+# Python virtual environments
+.env/
+.venv/
+*.env
+
+# MacOS system files
+.DS_Store
+
+# Logs and temp
+*.log
+*.tmp
+
+# Egg
+*.egg-info/
+
+# Odoo-specific
+*.zip
+*.dat
+*.db
+
+# Node or JS build (optional if using)
+node_modules/
+dist/
+build/
+
+# Compiled assets
+*.css.map
+*.js.map
