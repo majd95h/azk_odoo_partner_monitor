@@ -44,9 +44,10 @@ An advanced Odoo 18.0 Community module that scrapes official Odoo partners from 
 git clone https://github.com/majd95h/azk_odoo_partner_monitor.git
 ```
 
-2. Activate developer mode in Odoo.
-3. Update apps list.
-4. Install the **Odoo Partner Monitor** module.
+1. Activate developer mode in Odoo.
+2. Update apps list.
+3. Install the **Odoo Partner Monitor** module.
+4. After installing the module, it will take 3 to 4 minutes to complete the cron.
 
 ---
 ## 🔐 User Access Rights

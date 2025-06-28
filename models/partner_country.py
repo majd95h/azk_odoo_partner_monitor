@@ -73,5 +73,5 @@ class PartnerCountry(models.Model, PartnerMonitorMixin):
 
             finally:
                 # Always clear parameters to avoid side effects
-                params.unlink_param('azk_odoo_partner_monitor.partner_fetch_mode')
-                params.unlink_param('azk_odoo_partner_monitor.partner_country_id')
+                params.search([('key', '=', 'azk_odoo_partner_monitor.partner_fetch_mode')]).unlink()
+                params.search([('key', '=', 'azk_odoo_partner_monitor.partner_country_id')]).unlink()

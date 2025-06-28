@@ -1,6 +1,8 @@
 import logging
 import re
 import requests
+import time
+import random
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -8,6 +10,29 @@ from odoo import models, fields, api
 
 _logger = logging.getLogger(__name__)
 
+# --- HTTP SESSION WITH FAST RETRIES ---
+def get_retry_session():
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+    session = requests.Session()
+    retry = Retry(
+        total=2,                # Fewer retries for speed
+        read=2,
+        connect=2,
+        backoff_factor=0.5,     # Faster backoff for retries
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    # Custom User-Agent to reduce block risk
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (compatible; OdooPartnerBot/1.0; +https://yourdomain.example)'
+    })
+    return session
+
+RETRY_SESSION = get_retry_session()
 
 class PartnerPartner(models.Model):
     _name = 'azk.partner.partner'
@@ -94,11 +119,11 @@ class PartnerPartner(models.Model):
 
         return super().write(vals)
 
-    # Utility: Determine slug and ID for specific country
     def _get_country_slug_and_id(self, country_name):
         url = 'https://www.odoo.com/partners'
         try:
-            resp = requests.get(url, timeout=10)
+            time.sleep(random.uniform(0.1, 0.5))  # Speed: minimal delay
+            resp = RETRY_SESSION.get(url, timeout=20)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
             for a in soup.select('a[href*="/partners/country/"]'):
@@ -110,10 +135,10 @@ class PartnerPartner(models.Model):
             _logger.error("Failed to fetch country slug/id for %s: %s", country_name, e)
         return None, None
 
-    # Utility: Determine number of pages
     def _get_max_pages(self, base_url):
         try:
-            resp = requests.get(base_url, timeout=10)
+            time.sleep(random.uniform(0.1, 0.5))  # Speed: minimal delay
+            resp = RETRY_SESSION.get(base_url, timeout=20)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
             pages = [int(a.text.strip()) for a in soup.select('ul.pagination li a') if a.text.strip().isdigit()]
@@ -122,7 +147,6 @@ class PartnerPartner(models.Model):
             _logger.error("Pagination detection failed: %s", e)
             return 1
 
-    # Extract a single partner's data
     def _parse_partner_card(self, soup_item):
         try:
             name = soup_item.select_one('h5 span').text.strip()
@@ -162,7 +186,8 @@ class PartnerPartner(models.Model):
 
     def _scrape_page(self, url):
         try:
-            resp = requests.get(url, timeout=10)
+            time.sleep(random.uniform(0.1, 0.5))  # Speed: minimal delay
+            resp = RETRY_SESSION.get(url, timeout=20)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
             return [
@@ -209,7 +234,7 @@ class PartnerPartner(models.Model):
         use_amp = '?' in base_url
         url_for = lambda p: f"{base_url}/page/{p}" if not use_amp else f"{base_url}&page={p}" if p > 1 else base_url
 
-        thread_count = 50 if fetch_mode == 'all' else min(len(pages), 8)
+        thread_count = min(len(pages), 12)  # SPEED: up to 12 threads
         _logger.info("Fetching %d pages using %d threads...", len(pages), thread_count)
 
         scraped = []
@@ -249,9 +274,6 @@ class PartnerPartner(models.Model):
 
     def _parse_single_partner_page(self, soup):
         try:
-            # -----------------------------
-            # 1. Country from last <br> in address
-            # -----------------------------
             country_name = "Unknown"
             address_span = soup.select_one('span[itemprop="streetAddress"]')
             if address_span:
@@ -261,9 +283,6 @@ class PartnerPartner(models.Model):
                     if last_part:
                         country_name = last_part
 
-            # -----------------------------
-            # 2. Retention Rate from stat_size section (e.g., "88 %")
-            # -----------------------------
             retention_rate = 0.0
             stat_size_div = soup.select_one('div.stat_size')
             if stat_size_div:
@@ -273,13 +292,9 @@ class PartnerPartner(models.Model):
                     if match:
                         retention_rate = float(match.group(1))
 
-            # -----------------------------
-            # 3. Largest and Average Project Sizes
-            # -----------------------------
             largest_project_size = 0
             average_project_size = 0.0
             if stat_size_div:
-                # Largest
                 largest_tag = stat_size_div.find('span', string=re.compile('Largest', re.IGNORECASE))
                 if largest_tag and largest_tag.next_sibling:
                     largest_text = largest_tag.next_sibling.strip()
@@ -287,7 +302,6 @@ class PartnerPartner(models.Model):
                     if match:
                         largest_project_size = int(match.group(1))
 
-                # Average
                 average_tag = stat_size_div.find('span', string=re.compile('Average', re.IGNORECASE))
                 if average_tag and average_tag.next_sibling:
                     average_text = average_tag.next_sibling.strip()
@@ -295,9 +309,6 @@ class PartnerPartner(models.Model):
                     if match:
                         average_project_size = float(match.group(1))
 
-            # -----------------------------
-            # 4. Total References
-            # -----------------------------
             total_references_count = 0
             stat_ref_div = soup.select_one('div.stat_ref')
             if stat_ref_div:
@@ -307,7 +318,6 @@ class PartnerPartner(models.Model):
                     if match:
                         total_references_count = int(match.group(1))
 
-            # Return all values as a dict
             return {
                 'country_name': country_name,
                 'retention_rate': retention_rate,
@@ -335,18 +345,16 @@ class PartnerPartner(models.Model):
                 continue
 
             try:
-                # Fetch HTML content
-                response = requests.get(partner.partner_url, timeout=10)
+                time.sleep(random.uniform(0.1, 0.5))  # Speed: minimal delay
+                response = RETRY_SESSION.get(partner.partner_url, timeout=20)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                # Parse detailed partner data from page
                 data = self._parse_single_partner_page(soup)
                 if not data:
                     _logger.error("Empty result for %s", partner.partner_url)
                     continue
 
-                # Link country if found
                 country_name = data.pop('country_name', None)
                 if country_name:
                     country = self.env['azk.partner.country'].sudo().search([('name', '=', country_name)], limit=1)
@@ -354,11 +362,9 @@ class PartnerPartner(models.Model):
                         country = self.env['azk.partner.country'].sudo().create({'name': country_name})
                     data['country_id'] = country.id
 
-                # Update partner record
                 partner.write(data)
                 partner.to_reprocess_references = False
                 _logger.info("Successfully reprocessed partner: %s", partner.name)
 
             except Exception as e:
                 _logger.exception("Failed to reprocess %s: %s", partner.name, e)
-
