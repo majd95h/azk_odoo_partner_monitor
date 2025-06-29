@@ -113,6 +113,7 @@ class PartnerPartner(models.Model):
                 self.env['azk.partner.reference'].create({
                     'partner_id': partner.id,
                     'reference_count': str(vals['total_references_count']),
+                    'old_reference_count': partner.total_references_count,
                     'active': True,
                     'change_date': fields.Datetime.now(),
                 })
@@ -248,7 +249,12 @@ class PartnerPartner(models.Model):
 
     def _upsert_partner_records(self, records):
         country_model = self.env['azk.partner.country'].sudo()
-        existing = {p.name: p for p in self.search([('name', 'in', [r[0] for r in records])])}
+        reference_model = self.env['azk.partner.reference'].sudo()
+
+        existing = {
+            p.name: p for p in self.search([('name', 'in', [r[0] for r in records])])
+        }
+
         for name, data in records:
             country_name = data.pop('country_name', None)
             if country_name:
@@ -256,21 +262,52 @@ class PartnerPartner(models.Model):
                 if not country:
                     country = country_model.create({'name': country_name})
                 data['country_id'] = country.id
+
             if name in existing:
-                existing[name].write(data)
+                partner = existing[name]
+                old_count = partner.total_references_count
+                partner.write(data)
+                new_count = data.get('total_references_count')
+
+                # Reference history if updated
+                if new_count is not None and new_count != old_count:
+                    reference_model.create({
+                        'partner_id': partner.id,
+                        'reference_count': str(new_count),
+                        'active': True,
+                        'change_date': fields.Datetime.now(),
+                    })
             else:
-                self.create([{'name': name, **data}])
+                partner = self.create([{'name': name, **data}])[0]
+                reference_model.create({
+                    'partner_id': partner.id,
+                    'reference_count':str(partner.total_references_count or 0),
+                    'old_reference_count': str(partner.total_references_count or 0),
+                    'active': True,
+                    'change_date': fields.Datetime.now(),
+                })
 
     @api.model
     def cron_validate_partners(self):
+        Ref = self.env['azk.partner.reference']
         for partner in self.search([]):
-            active_count = self.env['azk.partner.reference'].search_count([
+            last_active_ref = Ref.search([
                 ('partner_id', '=', partner.id),
-                ('active', '=', True),
-            ])
-            if active_count != partner.total_references_count:
+                ('active', '=', True)
+            ], order="change_date desc", limit=1)
+
+            if not last_active_ref:
+                continue
+
+            reference_value = int(last_active_ref.old_reference_count or 0)
+            print('reference_value',reference_value)
+            print('partner.total_references_count',partner.total_references_count)
+            if reference_value != partner.total_references_count:
                 partner.write({'to_reprocess_references': True})
-                _logger.info("Partner %s marked for reprocess due to mismatch.", partner.name)
+                _logger.info(
+                    "Partner %s marked for reprocess: reference_count=%s vs total=%s",
+                    partner.name, reference_value, partner.total_references_count
+                )
 
     def _parse_single_partner_page(self, soup):
         try:

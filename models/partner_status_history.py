@@ -1,4 +1,3 @@
-# models/partner_status_history.py
 from odoo import models, fields
 
 class PartnerStatusHistory(models.Model):

@@ -4,7 +4,6 @@
     'summary': 'Monitor and track Odoo official partners daily',
     'category': 'Tools',
     'author': 'Majdhsien1@gmail.com',
-    # 'website': 'https://github.com/yourrepo/azk_odoo_partner_monitor',
     'license': 'AGPL-3',
     'depends': [
         'base',

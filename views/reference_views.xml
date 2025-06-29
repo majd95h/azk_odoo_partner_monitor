@@ -6,6 +6,7 @@
       <list>
         <field name="partner_id"/>
         <field name="reference_count"/>
+        <field name="old_reference_count"/>
         <field name="active"/>
       </list>
     </field>
